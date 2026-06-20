@@ -1,0 +1,10 @@
+Check if the cluster is ready
+  kubectl cluster-info
+
+Check if Kubeflow is running
+  kubectl get po -nkubeflow
+
+Access Kubeflow UI
+  kubectl port-forward svc/ml-pipeine-ui -nkubeflow 8080:80
+  Browser http://localhost:8080
+  
