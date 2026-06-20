@@ -1,0 +1,114 @@
+# PIPELINE DEFINITION
+# Name: passing-data
+components:
+  comp-generate-data:
+    executorLabel: exec-generate-data
+    outputDefinitions:
+      artifacts:
+        payload:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-inspect-data:
+    executorLabel: exec-inspect-data
+    inputDefinitions:
+      artifacts:
+        payload:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-generate-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - generate_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef generate_data(payload: dsl.OutputPath(\"payload\")):\n   import\
+          \ random\n   import pickle\n\n   # this is the array\n   data = []\n\n \
+          \  size = random.randint(50, 100)\n   for _ in range(size):\n      data.append(random.randint(0,\
+          \ 100))\n\n   print('>>>> payload: ', payload)\n   print('>>>>> generate_data:\
+          \ ', data)\n\n   # open the OutputPath and serialize data\n   with (open(payload,\
+          \ 'wb')) as f:\n      pickle.dump(data, f)\n\n"
+        image: python:3.12
+    exec-inspect-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - inspect_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef inspect_data(payload: dsl.InputPath(\"payload\")):\n   import\
+          \ pickle\n\n   # open the InputPath and deserialize the object\n   with\
+          \ (open(payload, 'rb')) as f:\n      data = pickle.load(f)\n\n   print('>>>>\
+          \ payload: ', payload)\n   print('>>>>> inspect_data: ', data)\n\n"
+        image: python:3.12
+pipelineInfo:
+  name: passing-data
+root:
+  dag:
+    tasks:
+      generate-data:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-generate-data
+        taskInfo:
+          name: generate-data
+      inspect-data:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-inspect-data
+        dependentTasks:
+        - generate-data
+        inputs:
+          artifacts:
+            payload:
+              taskOutputArtifact:
+                outputArtifactKey: payload
+                producerTask: generate-data
+        taskInfo:
+          name: inspect-data
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.16.1
