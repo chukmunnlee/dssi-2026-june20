@@ -1,10 +1,15 @@
 Check if the cluster is ready
   kubectl cluster-info
 
+Install Kubeflow see ./kubeflow_setup.txt
+
 Check if Kubeflow is running
   kubectl get po -nkubeflow
 
 Access Kubeflow UI
   kubectl port-forward svc/ml-pipeine-ui -nkubeflow 8080:80
   Browser http://localhost:8080
+  
+Compile pipeline in conda/virtual environment
+  kfp dsl compile --py my_first_pipeline.py --output my_first_pipeline.yaml
   

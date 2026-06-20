@@ -1,0 +1,209 @@
+# PIPELINE DEFINITION
+# Name: my-first-pipeline
+# Description: Frivolous pipeline
+# Inputs:
+#    high: int [Default: 10.0]
+#    low: int [Default: 5.0]
+# Outputs:
+#    Output: int
+components:
+  comp-power:
+    executorLabel: exec-power
+    inputDefinitions:
+      parameters:
+        base:
+          parameterType: NUMBER_INTEGER
+        exponent:
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: NUMBER_INTEGER
+  comp-randint:
+    executorLabel: exec-randint
+    inputDefinitions:
+      parameters:
+        max:
+          parameterType: NUMBER_INTEGER
+        min:
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: NUMBER_INTEGER
+  comp-randint-2:
+    executorLabel: exec-randint-2
+    inputDefinitions:
+      parameters:
+        max:
+          parameterType: NUMBER_INTEGER
+        min:
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: NUMBER_INTEGER
+deploymentSpec:
+  executors:
+    exec-power:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - power
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef power(base: int, exponent: int) -> int:\n   result: int = 1\n\
+          \   for _ in range(exponent):\n      result = result * base \n   return\
+          \ result\n\n"
+        image: python:3.12
+    exec-randint:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - randint
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef randint(min: int, max: int) -> int:\n   import random\n   return\
+          \ random.randint(min, max)\n\n"
+        image: python:3.12
+    exec-randint-2:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - randint
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef randint(min: int, max: int) -> int:\n   import random\n   return\
+          \ random.randint(min, max)\n\n"
+        image: python:3.12
+pipelineInfo:
+  description: Frivolous pipeline
+  name: my-first-pipeline
+root:
+  dag:
+    outputs:
+      parameters:
+        Output:
+          valueFromParameter:
+            outputParameterKey: Output
+            producerSubtask: power
+    tasks:
+      power:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-power
+        dependentTasks:
+        - randint
+        - randint-2
+        inputs:
+          parameters:
+            base:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: randint
+            exponent:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: randint-2
+        taskInfo:
+          name: power
+      randint:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-randint
+        inputs:
+          parameters:
+            max:
+              componentInputParameter: high
+            min:
+              componentInputParameter: low
+        taskInfo:
+          name: randint
+      randint-2:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-randint-2
+        inputs:
+          parameters:
+            max:
+              componentInputParameter: high
+            min:
+              componentInputParameter: low
+        taskInfo:
+          name: randint-2
+  inputDefinitions:
+    parameters:
+      high:
+        defaultValue: 10.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      low:
+        defaultValue: 5.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+  outputDefinitions:
+    parameters:
+      Output:
+        parameterType: NUMBER_INTEGER
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.16.1
